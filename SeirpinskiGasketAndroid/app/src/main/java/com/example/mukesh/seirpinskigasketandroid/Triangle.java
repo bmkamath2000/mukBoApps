@@ -18,56 +18,29 @@ public class Triangle {
             0.5f, -0.311004243f, 0.0f  // bottom right
     };
     float v[][]={{-1.0f,-0.5f,0.0f},{1.0f,-0.5f,0.0f},
-        {0.0f,1.0f,0.0f}};
+            {0.0f,1.0f,0.0f}};
     float colors[][]={{1.0f,0.0f,0.0f},{0.0f,1.0f,0.0f},{0.0f,0.0f,1.0f},{0.0f,0.0f,0.0f}};
-    int n=3;
+    public int n=4, prevn=0;
     int vc1=0;
     // Set color with red, green, blue and alpha (opacity) values
     float color[] = { 0.63671875f, 0.76953125f, 0.22265625f, 1.0f };
 
     public Triangle() {
-        // initialize vertex byte buffer for shape coordinates
-        ByteBuffer bb = ByteBuffer.allocateDirect(
-                // (number of coordinate values * 4 bytes per float)
-                10000);
-        // use the device hardware's native byte order
-        bb.order(ByteOrder.nativeOrder());
-
-        // create a floating point buffer from the ByteBuffer
-        vertexBuffer = bb.asFloatBuffer();
-        // add the coordinates to the FloatBuffer
-        //vertexBuffer.put(triangleCoords);
-        // set the buffer to read the first coordinate
-
-        divide_tetra(vertexBuffer,v[0],v[1],v[2],n);
-
-        vertexBuffer.position(0);
-        int vertexShader = MyGLRenderer.loadShader(GLES20.GL_VERTEX_SHADER,
-                vertexShaderCode);
-        int fragmentShader = MyGLRenderer.loadShader(GLES20.GL_FRAGMENT_SHADER,
-                fragmentShaderCode);
-
         // create empty OpenGL ES Program
         mProgram = GLES20.glCreateProgram();
-
-        // add the vertex shader to program
-        GLES20.glAttachShader(mProgram, vertexShader);
-
-        // add the fragment shader to program
-        GLES20.glAttachShader(mProgram, fragmentShader);
-
-        // creates OpenGL ES program executables
-        GLES20.glLinkProgram(mProgram);
     }
     void triangle(FloatBuffer fb,float a[],float b[],float c[])
     {
-
         fb.put(a);
-
         fb.put(b);
-
         fb.put(c);
-        vc1++;
+        vc1+=3;
+    }
+    public int findnoofnodes(int nt)
+    {
+        if(nt<=1)
+            return 3;
+        else return ((findnoofnodes(nt-1) * 3) - 3);
     }
 
 
@@ -113,8 +86,47 @@ public class Triangle {
 
     private final int vertexCount = triangleCoords.length / COORDS_PER_VERTEX;
     private final int vertexStride = COORDS_PER_VERTEX *4; // 4 bytes per vertex
+    public void PopulateVBO()
+    {
+        final int nodesN = findnoofnodes(n+2);
+        // initialize vertex byte buffer for shape coordinates
+        ByteBuffer bb = ByteBuffer.allocateDirect(
+                // (number of coordinate values * 4 bytes per float)
+                (nodesN* 16 ) +100
+                //90000
+        );
+        // use the device hardware's native byte order
+        bb.order(ByteOrder.nativeOrder());
 
+        // create a floating point buffer from the ByteBuffer
+        vertexBuffer = bb.asFloatBuffer();
+        // add the coordinates to the FloatBuffer
+        //vertexBuffer.put(triangleCoords);
+        // set the buffer to read the first coordinate
+        vc1=0;
+        divide_tetra(vertexBuffer,v[0],v[1],v[2],n);
+        System.out.println("Length of VB"+ vertexBuffer.capacity()+ "VC1"+vc1);
+        vertexBuffer.position(0);
+        int vertexShader = MyGLRenderer.loadShader(GLES20.GL_VERTEX_SHADER,
+                vertexShaderCode);
+        int fragmentShader = MyGLRenderer.loadShader(GLES20.GL_FRAGMENT_SHADER,
+                fragmentShaderCode);
+
+        // add the vertex shader to program
+        GLES20.glAttachShader(mProgram, vertexShader);
+
+        // add the fragment shader to program
+        GLES20.glAttachShader(mProgram, fragmentShader);
+
+        // creates OpenGL ES program executables
+        GLES20.glLinkProgram(mProgram);
+    }
     public void draw() {
+        if(prevn != n && n > 0)
+        {
+            prevn = n;
+            PopulateVBO();
+        }
         // Add program to OpenGL ES environment
         GLES20.glUseProgram(mProgram);
 
