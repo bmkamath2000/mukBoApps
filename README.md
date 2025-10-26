@@ -1,6 +1,7 @@
 # mukBoApps
 created by muk bo
-DeepFekuGram
+DeepFekuGram is an App to avoid typing https://wa.me/919019677733 in the chrome browser after linking chrome with your whatsapp account
+and still chat with anyone. Use is when you don't want to save someone's number but want to chat anyhow.
 ![WhatsApp Image 2025-06-27 at 10 02 38 AM](https://github.com/user-attachments/assets/fde02454-c863-46a7-939e-03b33cca5ca2)
 
 SierpinskiGasketAndroid
