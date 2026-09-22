@@ -14,7 +14,7 @@ class FirstFragment : Fragment() {
     private val input = StringBuilder()
     private lateinit var urlText: TextView
     private lateinit var keypad: GridLayout
-    private val keys = arrayOf("1","2","3","4","5","6","7","8","9","0","DEL","ENTER")
+    private val keys = arrayOf("1","2","3","4","5","6","7","8","9","0","DEL","Paste","ENTER")
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -32,6 +32,34 @@ class FirstFragment : Fragment() {
         return view
     }
 
+    private fun pasteFromClipboard() {
+        val clipboard = requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        val clip = clipboard.primaryClip
+
+        if (clip != null && clip.itemCount > 0) {
+            val pastedText = clip.getItemAt(0).coerceToText(requireContext()).toString()
+
+            // Strip everything except digits
+            var digitsOnly = pastedText.filter { it.isDigit() }
+
+            // Handle numbers that include the country code, e.g. "919876543210" or "+919876543210"
+            if (digitsOnly.length == 12 && digitsOnly.startsWith("91")) {
+                digitsOnly = digitsOnly.substring(2)
+            }
+
+            if (digitsOnly.length >= 10) {
+                input.clear()
+                input.append(digitsOnly.takeLast(10))
+            } else if (digitsOnly.isNotEmpty()) {
+                input.clear()
+                input.append(digitsOnly)
+            } else {
+                Toast.makeText(requireContext(), "Clipboard has no digits", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(requireContext(), "Clipboard is empty", Toast.LENGTH_SHORT).show()
+        }
+    }
     private fun setupKeypad() {
         for (key in keys) {
             val button = Button(requireContext()).apply {
@@ -59,6 +87,9 @@ class FirstFragment : Fragment() {
         when (key) {
             "DEL" -> {
                 if (input.isNotEmpty()) input.deleteCharAt(input.length - 1)
+            }
+            "Paste" ->{
+                pasteFromClipboard()
             }
             "ENTER" -> {
                 if (input.length == 10) {

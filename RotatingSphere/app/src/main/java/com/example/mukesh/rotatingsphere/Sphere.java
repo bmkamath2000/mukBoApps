@@ -17,43 +17,68 @@ public class Sphere {
     float v[][]={{1.0f,1.0f,1.0f},{-1.0f,-1.0f,1.0f},
             {-1.0f,1.0f,-1.0f}, {1.0f,-1.0f,-1.0f}};
     int n=4;
-    int vc1=0;
-
+    int vertexCount=0;
+    int colorIndex = 0;
     // Set color with red, green, blue and alpha (opacity) values
     float color[] = { 0.63671875f, 0.76953125f, 0.22265625f, 0.0f };
+
+
     public Sphere() {
-
-        // initialize vertex byte buffer for shape coordinates
+        int trianglesPerFace = (int)Math.pow(4, n - 1);
+        int triangleCount = 4 * trianglesPerFace;
+        int vertexCount = triangleCount * 3;
         ByteBuffer bb = ByteBuffer.allocateDirect(
-                // (number of coordinate values * 4 bytes per float)
-                10000);
-        // use the device hardware's native byte order
+                vertexCount * COORDS_PER_VERTEX * 4
+        );
         bb.order(ByteOrder.nativeOrder());
-
-        // create a floating point buffer from the ByteBuffer
         vertexBuffer = bb.asFloatBuffer();
-        ByteBuffer bc = ByteBuffer.allocateDirect(
-                // (number of coordinate values * 4 bytes per float)
-                10000);
-        // use the device hardware's native byte order
-        bc.order(ByteOrder.nativeOrder());
 
-        // create a floating point buffer from the ByteBuffer
+        ByteBuffer bc = ByteBuffer.allocateDirect(
+                vertexCount * 4 * Float.BYTES
+        );
+        bc.order(ByteOrder.nativeOrder());
         colorBuffer = bc.asFloatBuffer();
+
         sphereball(vertexBuffer,colorBuffer,v[0],v[1],v[2],v[3],n);
         System.out.println("count:"+vertexBuffer.capacity());
 
         vertexBuffer.position(0);
-        //System.out.println("count2:"+colorBuffer.capacity());
+        System.out.println("count2:"+colorBuffer.capacity());
         colorBuffer.position(0);
         int vertexShader = GLES20.glCreateShader(GLES20.GL_VERTEX_SHADER);
         GLES20.glShaderSource(vertexShader, vertexShaderCode);
         GLES20.glCompileShader(vertexShader);
+        int[] compiled = new int[1];
 
+        GLES20.glGetShaderiv(
+                vertexShader,
+                GLES20.GL_COMPILE_STATUS,
+                compiled,
+                0
+        );
+
+        if (compiled[0] == 0) {
+            System.out.println(
+                    GLES20.glGetShaderInfoLog(vertexShader)
+            );
+        }
         int fragmentShader = GLES20.glCreateShader(GLES20.GL_FRAGMENT_SHADER);
         GLES20.glShaderSource(fragmentShader, fragmentShaderCode);
         GLES20.glCompileShader(fragmentShader);
+        compiled = new int[1];
 
+        GLES20.glGetShaderiv(
+                fragmentShader,
+                GLES20.GL_COMPILE_STATUS,
+                compiled,
+                0
+        );
+
+        if (compiled[0] == 0) {
+            System.out.println(
+                    GLES20.glGetShaderInfoLog(fragmentShader)
+            );
+        }
 // Create a program and link the shaders
         shaderProgram = GLES20.glCreateProgram();
         GLES20.glAttachShader(shaderProgram, vertexShader);
@@ -64,13 +89,38 @@ public class Sphere {
         GLES20.glUseProgram(shaderProgram);
     }
 
-    void triangle(FloatBuffer fb, float a[],float b[],float c[])
-    {
+    void triangle(FloatBuffer fb, FloatBuffer cb,
+                  float a[], float b[], float c[]) {
+
         fb.put(a);
         fb.put(b);
         fb.put(c);
-        vc1+=3;
+
+        float[] currentColor;
+
+        switch (colorIndex) {
+            case 0:
+                currentColor = new float[]{1, 0, 0, 1};
+                break;
+            case 1:
+                currentColor = new float[]{0, 1, 0, 1};
+                break;
+            case 2:
+                currentColor = new float[]{0, 0, 1, 1};
+                break;
+            default:
+                currentColor = new float[]{1, 1, 0, 1};
+                break;
+        }
+
+        cb.put(currentColor);
+        cb.put(currentColor);
+        cb.put(currentColor);
+
+        vertexCount += 3;
+        colorIndex = (colorIndex + 1) % 4;
     }
+
     void divide_tetra(FloatBuffer fb,FloatBuffer cb,float a[],float b[],float c[],int m)
     {
         float v1[]=new float[3],v2[]=new float[3],v3[]=new float[3];
@@ -90,13 +140,11 @@ public class Sphere {
             divide_tetra(fb,cb,c,v3,v2,m-1);
             divide_tetra(fb,cb,b,v1,v3,m-1);
             divide_tetra(fb,cb,v1,v2,v3,m-1);
-            //cb.put(colors123);
+
         }
         else {
-            triangle(fb, a, b, c);      //draw triangle at end of recursion//
-            cb.put((float)(Math.random() * 4.0));  // Use color 0 (red)
-            cb.put((float)(Math.random() * 4.0));  // Use color 1 (green)
-            cb.put((float)(Math.random() * 4.0));  // Use color 2 (blue)
+            triangle(fb, cb, a, b, c);      //draw triangle at end of recursion//
+            System.out.print(colorIndex);
         }
     }
     void normalize(float p[])
@@ -105,7 +153,7 @@ public class Sphere {
         int i;
         for(i=0;i<3;i++)
             d+=p[i]*p[i];
-        d=1.5f*Math.sqrt(d);
+        d = 1.5f * Math.sqrt(d);
         //d=d+(1-d)*MyGLRenderer.getSf();
         if(d>0.0) for(i=0;i<3;i++) p[i]/=d;
     }
@@ -125,23 +173,20 @@ public class Sphere {
 
 
     String vertexShaderCode =
-            "uniform mat4 uMVPMatrix;\n"+
-            "attribute vec4 vPosition;\n" +
-                    "attribute float vColorIndex;\n" +
-                    "varying float fColorIndex;\n" +
+            "uniform mat4 uMVPMatrix;\n" +
+                    "attribute vec4 vPosition;\n" +
+                    "attribute vec4 vColor;\n" +
+                    "varying vec4 fColor;\n" +
                     "void main() {\n" +
                     "    gl_Position = uMVPMatrix * vPosition;\n" +
-                    "    fColorIndex = vColorIndex;\n" +
+                    "    fColor = vColor;\n" +
                     "}\n";
-
 
     String fragmentShaderCode =
             "precision mediump float;\n" +
-                    "varying float fColorIndex;\n" +
-                    "uniform vec4 colors[4];\n" +  // 4 colors passed as uniform
+                    "varying vec4 fColor;\n" +
                     "void main() {\n" +
-                    "    int colorIndex = int(fColorIndex);\n" +  // Cast float to int
-                    "    gl_FragColor = colors[colorIndex];\n" + // Use the color index to pick a color
+                    "    gl_FragColor = fColor;\n" +
                     "}\n";
 
     private int mPositionHandle;
@@ -151,7 +196,9 @@ public class Sphere {
     private final int vertexStride = 0;//COORDS_PER_VERTEX *4; // 4 bytes per vertex
 
     public void draw(float[] mvpMatrix) {
-
+        GLES20.glEnable(GLES20.GL_DEPTH_TEST);
+//        GLES20.glEnable(GLES20.GL_CULL_FACE);
+//        GLES20.glCullFace(GLES20.GL_BACK);
         // Add program to OpenGL environment
         GLES20.glUseProgram(shaderProgram);
         // get handle to vertex shader's vPosition member
@@ -166,20 +213,24 @@ public class Sphere {
         // get handle to fragment shader's vColor member
         colorIndexHandle = GLES20.glGetAttribLocation(shaderProgram, "vColorIndex");
         GLES20.glEnableVertexAttribArray(colorIndexHandle);
+        int colorHandle =
+                GLES20.glGetAttribLocation(shaderProgram, "vColor");
+
         // Set color for drawing the triangle
         GLES20.glVertexAttribPointer(colorIndexHandle, 1,
                 GLES20.GL_FLOAT, false,0, colorBuffer);
-        // Define the 4 colors (same as in the shader)
-        float[] colors = {
-                1.0f, 0.0f, 0.0f, 1.0f,  // Red
-                0.0f, 1.0f, 0.0f, 1.0f,  // Green
-                0.0f, 0.0f, 1.0f, 1.0f,  // Blue
-                1.0f, 1.0f, 0.0f, 1.0f   // Yellow
-        };
 
-// Pass the color array to the fragment shader as a uniform
-        int colorUniformHandle = GLES20.glGetUniformLocation(shaderProgram, "colors");
-        GLES20.glUniform4fv(colorUniformHandle, 4, colors, 0);
+
+        GLES20.glEnableVertexAttribArray(colorHandle);
+
+        GLES20.glVertexAttribPointer(
+                colorHandle,
+                4,
+                GLES20.GL_FLOAT,
+                false,
+                0,
+                colorBuffer
+        );
 
         // get handle to shape's transformation matrix
         mMVPMatrixHandle = GLES20.glGetUniformLocation(shaderProgram, "uMVPMatrix");
@@ -188,7 +239,7 @@ public class Sphere {
         GLES20.glUniformMatrix4fv(mMVPMatrixHandle, 1, false, mvpMatrix, 0);
         MyGLRenderer.checkGlError("glUniformMatrix4fv");
         // Draw the triangle
-        GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, vc1);
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, vertexCount);
         // Disable vertex array
         GLES20.glDisableVertexAttribArray(mPositionHandle);
         GLES20.glDisableVertexAttribArray(colorIndexHandle);

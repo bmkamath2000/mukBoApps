@@ -36,13 +36,6 @@ public class Triangle {
         fb.put(c);
         vc1+=3;
     }
-    public int findnoofnodes(int nt)
-    {
-        if(nt<=1)
-            return 3;
-        else return ((findnoofnodes(nt-1) * 3) - 3);
-    }
-
 
     void divide_tetra(FloatBuffer fb,float a[],float b[],float c[],int m)
     {
@@ -86,18 +79,15 @@ public class Triangle {
 
     private final int vertexCount = triangleCoords.length / COORDS_PER_VERTEX;
     private final int vertexStride = COORDS_PER_VERTEX *4; // 4 bytes per vertex
-    public void PopulateVBO()
+    public void PopulateVBO(int n)
     {
-        final int nodesN = findnoofnodes(n+2);
-        // initialize vertex byte buffer for shape coordinates
-        ByteBuffer bb = ByteBuffer.allocateDirect(
-                // (number of coordinate values * 4 bytes per float)
-                (nodesN* 16 ) +100
-                //90000
-        );
+        long leafTriangles = (long) Math.pow(3, n);
+        long neededFloats = leafTriangles * 3 /*vertices*/ * COORDS_PER_VERTEX;
+
+        ByteBuffer bb = ByteBuffer.allocateDirect((int) (neededFloats * 4) + 100); // +100 safety margin
         // use the device hardware's native byte order
         bb.order(ByteOrder.nativeOrder());
-
+        vertexBuffer = null;
         // create a floating point buffer from the ByteBuffer
         vertexBuffer = bb.asFloatBuffer();
         // add the coordinates to the FloatBuffer
@@ -122,10 +112,10 @@ public class Triangle {
         GLES20.glLinkProgram(mProgram);
     }
     public void draw() {
-        if(prevn != n && n > 0)
+        if(n > 0 & prevn != n )
         {
             prevn = n;
-            PopulateVBO();
+            PopulateVBO(n);
         }
         // Add program to OpenGL ES environment
         GLES20.glUseProgram(mProgram);
